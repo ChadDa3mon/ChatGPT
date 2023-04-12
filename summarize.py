@@ -32,27 +32,41 @@ urls = response.content.decode().split('\n')
 # Remove empty elements from the list
 urls = [u for u in urls if u]
 
+# Load list of processed URLs from a file
+processed_file = 'processed_urls.txt'
+if os.path.exists(processed_file):
+    with open(processed_file, 'r') as f:
+        processed_urls = f.read().split('\n')
+else:
+    processed_urls = []
+
 # Generate summary using OpenAI API and create a new post on WordPress
 wp_client = Client(wp_url, wp_username, wp_password)
 for u in urls:
-    text = scrape_text(u)
-    prompt = f"Summarize the article at {u}."
-    response = openai.Completion.create(
-        engine="text-davinci-002",
-        prompt=prompt,
-        max_tokens=1024,
-        n=1,
-        stop=None,
-        temperature=0.5,
-    )
-    summary = response.choices[0].text.strip()
-    print(f"Summary of {u}:")
-    print(summary)
-    
-    # Create a new post on WordPress
-    post = WordPressPost()
-    post.title = f"Summary of {u}"
-    post.content = summary
-    post.post_status = 'publish'
-    post_id = wp_client.call(NewPost(post))
-    print(f"New post created with ID: {post_id}")
+    if u not in processed_urls:
+        text = scrape_text(u)
+        prompt = f"Summarize the article at {u}."
+        response = openai.Completion.create(
+            engine="text-davinci-002",
+            prompt=prompt,
+            max_tokens=1024,
+            n=1,
+            stop=None,
+            temperature=0.5,
+        )
+        summary = response.choices[0].text.strip()
+        print(f"Summary of {u}:")
+        print(summary)
+
+        # Create a new post on WordPress
+        post = WordPressPost()
+        post.title = f"Summary of {u}"
+        post.content = summary
+        post.post_status = 'publish'
+        post_id = wp_client.call(NewPost(post))
+        print(f"New post created with ID: {post_id}")
+
+        # Add processed URL to list
+        processed_urls.append(u)
+        with open(processed_file, 'a') as f:
+            f.write(u + '\n')
